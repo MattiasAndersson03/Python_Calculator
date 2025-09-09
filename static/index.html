@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calculator</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body>
+    <div class="card">
+      <h1>Calculator</h1>
+      <div class="row">
+        <input id="expr" placeholder="Type an expression, e.g. 2*(3+4) or sin(pi/2)" />
+        <button class="primary" id="calc">Calculate</button>
+      </div>
+      <div class="grid" id="keys"></div>
+      <div class="result" id="result"></div>
+      <div class="hint">
+        Supports <code>+ - * / ** ( )</code> and functions like
+        <code>sqrt, sin, cos, tan, log, log10, exp, abs, round</code>.
+        Constants: <code>pi, e</code>. Press <kbd>Enter</kbd> to calculate.
+      </div>
+      <footer>Backend: Flask (Python) · Frontend: HTML/CSS/JS</footer>
+    </div>
+
+    <script>
+      const expr = document.querySelector('#expr');
+      const btn = document.querySelector('#calc');
+      const out = document.querySelector('#result');
+      const keys = document.querySelector('#keys');
+
+      const keypad = [
+        '7','8','9','/','4','5','6','*','1','2','3','-','0','.','(',')','+','**','pi','e','sqrt(','sin(','cos(','tan(','log(','log10(','exp(','abs(','round(','%','C'
+      ];
+      keypad.forEach(k => {
+        const el = document.createElement('div');
+        el.className = 'key';
+        el.textContent = k;
+        el.onclick = () => {
+          if (k === 'C') {
+            expr.value = '';
+            expr.focus();
+            render('');
+            return;
+          }
+          const insert = k;
+          const start = expr.selectionStart ?? expr.value.length;
+          const end = expr.selectionEnd ?? expr.value.length;
+          expr.value = expr.value.slice(0, start) + insert + expr.value.slice(end);
+          expr.focus();
+          expr.selectionStart = expr.selectionEnd = start + insert.length;
+        };
+        keys.appendChild(el);
+      });
+
+      async function calculate() {
+        const expression = expr.value.trim();
+        if (!expression) {
+          render('');
+          return;
+        }
+        try {
+          const res = await fetch('/api/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expression })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            render(data.result);
+          } else {
+            renderError(data.error || 'Error while calculating');
+          }
+        } catch (err) {
+          renderError('Could not contact server');
+        }
+      }
+
+      function render(v) {
+        out.className = 'result';
+        out.textContent = v === '' ? '' : `= ${v}`;
+      }
+      function renderError(msg) {
+        out.className = 'result error';
+        out.textContent = msg;
+      }
+
+      btn.onclick = calculate;
+      expr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') calculate();
+      });
+    </script>
+  </body>
+</html>
